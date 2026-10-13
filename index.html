@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#10191a">
+<title>Smart Running Navigator — Phase 3</title>
+<style>
+:root{color-scheme:dark;--bg:#10191a;--panel:#1b292a;--panel2:#223334;--ink:#f3f7f5;--muted:#a9bcba;--accent:#a7f36b;--warn:#ffce73;--bad:#ff827d;--line:#344748}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(180deg,#10191a,#142121 55%,#10191a);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);min-height:100vh;padding:env(safe-area-inset-top) 14px calc(20px + env(safe-area-inset-bottom))}
+main{max-width:640px;margin:0 auto;padding-top:12px}.eyebrow{font-size:12px;letter-spacing:.12em;font-weight:800;color:var(--accent)}h1{margin:6px 0 4px;font-size:28px;line-height:1.12}p{color:var(--muted);line-height:1.45;margin:6px 0 0}.status{display:flex;align-items:center;gap:9px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin:18px 0}.dot{width:10px;height:10px;border-radius:50%;background:var(--warn);flex:none}.dot.good{background:var(--accent)}.dot.bad{background:var(--bad)}#statusText{font-size:14px;font-weight:650}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.metric{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:15px;min-height:118px}.label{font-size:12px;color:var(--muted);letter-spacing:.04em}.value{font-size:clamp(26px,7vw,38px);font-weight:800;letter-spacing:-.04em;margin-top:9px;white-space:nowrap}.unit{font-size:13px;color:var(--muted);font-weight:550;letter-spacing:0}.mainMetric{grid-column:1/-1;background:linear-gradient(135deg,#243839,#1b292a);min-height:150px}.mainMetric .value{font-size:clamp(42px,12vw,58px);color:var(--accent)}.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}.btn{border:0;border-radius:14px;padding:15px 12px;font-size:16px;font-weight:800;cursor:pointer;min-height:52px}.primary{background:var(--accent);color:#162016}.secondary{background:var(--panel2);border:1px solid var(--line);color:var(--ink)}.danger{color:var(--bad)}.btn:disabled{opacity:.4;cursor:not-allowed}.section{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px;margin-top:12px}.section h2{font-size:15px;margin:0 0 10px}.details{display:grid;grid-template-columns:1fr 1fr;gap:10px}.detail{background:#132020;border-radius:10px;padding:10px;min-width:0}.detail span{display:block;color:var(--muted);font-size:11px;margin-bottom:5px}.detail strong{font-size:13px;overflow-wrap:anywhere}.note{font-size:12px;color:var(--muted);margin-top:12px;line-height:1.5}.footer{font-size:11px;text-align:center;color:#78908d;margin-top:16px}#raw{font:11px ui-monospace,SFMono-Regular,monospace;white-space:pre-wrap;overflow-wrap:anywhere;color:#c9d8d5;margin:0}.badge{display:inline-block;border:1px solid var(--line);border-radius:99px;padding:4px 8px;color:var(--muted);font-size:11px;margin-left:6px}@media(min-width:520px){.metric{padding:18px}.section{padding:16px}}
+</style>
+</head>
+<body>
+<main>
+  <div class="eyebrow">SMART RUNNING NAVIGATOR · PHASE 3</div>
+  <h1>Run Tracker</h1>
+  <p>ทดลองอ่าน GPS และคำนวณระยะทางกับ Pace บน iPhone</p>
+  <div class="status" role="status" aria-live="polite"><span class="dot" id="statusDot"></span><span id="statusText">พร้อมเริ่ม — กด “เริ่มวิ่ง” เพื่ออนุญาต GPS</span></div>
+
+  <div class="grid">
+    <section class="metric mainMetric"><div class="label">DISTANCE · ระยะทาง</div><div class="value"><span id="distance">0.00</span> <span class="unit">km</span></div></section>
+    <section class="metric"><div class="label">AVG PACE · เพซเฉลี่ย</div><div class="value" id="pace">--:--</div><div class="unit">นาที / กม.</div></section>
+    <section class="metric"><div class="label">DURATION · เวลาวิ่ง</div><div class="value" id="duration">00:00</div><div class="unit">นาที:วินาที (แสดงชั่วโมงเมื่อเกิน 1 ชม.)</div></section>
+  </div>
+
+  <div class="actions">
+    <button class="btn primary" id="startBtn">เริ่มวิ่ง</button>
+    <button class="btn secondary" id="pauseBtn" disabled>พักชั่วคราว</button>
+    <button class="btn secondary" id="finishBtn" disabled>จบการวิ่ง</button>
+    <button class="btn secondary danger" id="resetBtn">รีเซ็ต</button>
+  </div>
+
+  <section class="section">
+    <h2>สถานะ GPS <span class="badge" id="gpsBadge">ยังไม่เริ่ม</span></h2>
+    <div class="details">
+      <div class="detail"><span>ละติจูด</span><strong id="lat">—</strong></div>
+      <div class="detail"><span>ลองจิจูด</span><strong id="lon">—</strong></div>
+      <div class="detail"><span>ความแม่นยำ</span><strong id="accuracy">—</strong></div>
+      <div class="detail"><span>ความเร็ว GPS</span><strong id="speed">—</strong></div>
+    </div>
+    <p class="note">เพื่อให้ได้ผลดี ให้ทดสอบกลางแจ้ง เปิด Location Services และอนุญาตตำแหน่งให้ Safari ข้อมูลตำแหน่งในเว็บต้องเปิดผ่าน HTTPS จึงจะใช้ GPS ได้ในบริบทปกติ</p>
+  </section>
+
+  <section class="section">
+    <h2>ข้อมูลตัวอย่างสำหรับ Phase 4 (BLE)</h2>
+    <pre id="raw">{"distance_km":0,"pace_sec_km":0,"direction":"STRAIGHT","off_route":false}</pre>
+    <p class="note">ตอนนี้ส่วนนี้เป็นเพียงตัวอย่างข้อมูล JSON ยังไม่ได้ส่ง Bluetooth จาก Safari เพราะ Safari บน iPhone ไม่มี Web Bluetooth API ในตัว</p>
+  </section>
+  <div class="footer">Prototype · Phase 3 · ไม่ต้องสร้างบัญชีและไม่ส่งพิกัดไปเซิร์ฟเวอร์จากโค้ดนี้</div>
+</main>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  let watchId = null, started = false, paused = false, finished = false;
+  let startTime = 0, elapsedBeforePause = 0, timerId = null;
+  let distanceMeters = 0, previous = null, lastAcceptedTimestamp = 0;
+  let lastPosition = null, paceSecondsKm = 0;
+
+  const setStatus = (text, type='') => {
+    $('statusText').textContent = text;
+    $('statusDot').className = 'dot' + (type ? ' ' + type : '');
+  };
+  const fmtTime = secs => {
+    secs = Math.max(0, Math.floor(secs));
+    const h = Math.floor(secs/3600), m = Math.floor((secs%3600)/60), s = secs%60;
+    return h ? `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}` : `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  };
+  const elapsed = () => elapsedBeforePause + (started && !paused && !finished ? (Date.now()-startTime)/1000 : 0);
+  const haversine = (a,b) => {
+    const rad = d => d*Math.PI/180, R=6371000;
+    const dLat=rad(b.latitude-a.latitude), dLon=rad(b.longitude-a.longitude);
+    const x=Math.sin(dLat/2)**2 + Math.cos(rad(a.latitude))*Math.cos(rad(b.latitude))*Math.sin(dLon/2)**2;
+    return 2*R*Math.asin(Math.min(1,Math.sqrt(x)));
+  };
+  function updateMetrics(){
+    $('distance').textContent=(distanceMeters/1000).toFixed(2);
+    const t=elapsed(); $('duration').textContent=fmtTime(t);
+    paceSecondsKm = distanceMeters >= 30 ? Math.round(t/(distanceMeters/1000)) : 0;
+    $('pace').textContent=paceSecondsKm ? `${Math.floor(paceSecondsKm/60)}:${String(paceSecondsKm%60).padStart(2,'0')}` : '--:--';
+    $('raw').textContent=JSON.stringify({distance_km:Number((distanceMeters/1000).toFixed(3)),pace_sec_km:paceSecondsKm,direction:'STRAIGHT',off_route:false});
+  }
+  function tick(){ updateMetrics(); }
+  function startTimer(){ if(timerId) clearInterval(timerId); timerId=setInterval(tick,1000); }
+  function stopWatch(){ if(watchId!==null && navigator.geolocation) navigator.geolocation.clearWatch(watchId); watchId=null; }
+  function onPosition(pos){
+    const c=pos.coords, cur={latitude:c.latitude,longitude:c.longitude,accuracy:c.accuracy,timestamp:pos.timestamp,speed:c.speed};
+    lastPosition=cur;
+    $('lat').textContent=cur.latitude.toFixed(6); $('lon').textContent=cur.longitude.toFixed(6);
+    $('accuracy').textContent=`±${Math.round(cur.accuracy)} m`;
+    $('speed').textContent=(cur.speed!=null && Number.isFinite(cur.speed) && cur.speed>=0) ? `${(cur.speed*3.6).toFixed(1)} km/h` : '—';
+    $('gpsBadge').textContent=cur.accuracy<=20?'ดี':cur.accuracy<=50?'พอใช้':'อ่อน';
+    if(cur.accuracy>50){ setStatus(`GPS ยังไม่แม่นพอ (±${Math.round(cur.accuracy)} m) — ลองอยู่ในที่โล่ง`, ''); return; }
+    if(previous){
+      const dt=(cur.timestamp-previous.timestamp)/1000;
+      const d=haversine(previous,cur);
+      // Reject obvious GPS jumps. A simple early prototype filter, not a production-grade GPS algorithm.
+      const plausible=dt>0 && dt<=30 && d<=Math.max(60,dt*8) && d>=Math.max(2,Math.min(5,cur.accuracy*0.08));
+      if(plausible){ distanceMeters+=d; lastAcceptedTimestamp=cur.timestamp; }
+      if(dt>30 || d>Math.max(60,dt*8)) previous=cur;
+      else if(plausible) previous=cur;
+    } else { previous=cur; }
+    setStatus(`รับ GPS แล้ว · ความแม่นยำ ±${Math.round(cur.accuracy)} m`, 'good');
+    updateMetrics();
+  }
+  function onGpsError(err){
+    let msg='อ่านตำแหน่งไม่ได้';
+    if(err.code===1) msg='ยังไม่ได้อนุญาต Location ให้ Safari';
+    if(err.code===2) msg='หา GPS ไม่พบ — ลองออกไปกลางแจ้ง';
+    if(err.code===3) msg='GPS ใช้เวลานานเกินไป — ลองอีกครั้ง';
+    setStatus(msg,'bad'); $('gpsBadge').textContent='มีปัญหา';
+  }
+  function start(){
+    if(finished) reset();
+    if(!('geolocation' in navigator)){setStatus('เบราว์เซอร์นี้ไม่รองรับการอ่าน GPS','bad');return;}
+    if(!window.isSecureContext){setStatus('ต้องเปิดเว็บผ่าน HTTPS ก่อนจึงจะใช้ GPS ได้','bad');return;}
+    stopWatch(); started=true; paused=false; finished=false; startTime=Date.now();
+    $('startBtn').disabled=true; $('pauseBtn').disabled=false; $('finishBtn').disabled=false;
+    $('pauseBtn').textContent='พักชั่วคราว'; $('gpsBadge').textContent='กำลังค้นหา';
+    setStatus('กำลังค้นหา GPS — พยายามอยู่กลางแจ้ง','');
+    watchId=navigator.geolocation.watchPosition(onPosition,onGpsError,{enableHighAccuracy:true,maximumAge:1000,timeout:20000});
+    startTimer();
+  }
+  function pause(){
+    if(!started||finished)return;
+    if(!paused){ elapsedBeforePause+= (Date.now()-startTime)/1000; paused=true; stopWatch(); $('pauseBtn').textContent='วิ่งต่อ'; setStatus('พักอยู่ — GPS หยุดชั่วคราว',''); }
+    else { paused=false; startTime=Date.now(); $('pauseBtn').textContent='พักชั่วคราว'; setStatus('กำลังกลับมาค้นหา GPS',''); watchId=navigator.geolocation.watchPosition(onPosition,onGpsError,{enableHighAccuracy:true,maximumAge:1000,timeout:20000}); }
+    updateMetrics();
+  }
+  function finish(){
+    if(!started)return;
+    if(!paused) elapsedBeforePause+=(Date.now()-startTime)/1000;
+    finished=true; paused=false; started=false; stopWatch(); if(timerId)clearInterval(timerId); timerId=null;
+    $('startBtn').disabled=false; $('pauseBtn').disabled=true; $('finishBtn').disabled=true;
+    $('startBtn').textContent='เริ่มวิ่งใหม่'; $('gpsBadge').textContent='จบแล้ว';
+    setStatus('จบการวิ่งแล้ว — สรุปผลอยู่บนหน้าจอ','good'); updateMetrics();
+  }
+  function reset(){
+    stopWatch(); if(timerId)clearInterval(timerId); timerId=null;
+    started=false;paused=false;finished=false;startTime=0;elapsedBeforePause=0;distanceMeters=0;previous=null;lastAcceptedTimestamp=0;lastPosition=null;paceSecondsKm=0;
+    $('lat').textContent='—';$('lon').textContent='—';$('accuracy').textContent='—';$('speed').textContent='—';$('gpsBadge').textContent='ยังไม่เริ่ม';
+    $('startBtn').disabled=false;$('startBtn').textContent='เริ่มวิ่ง';$('pauseBtn').disabled=true;$('pauseBtn').textContent='พักชั่วคราว';$('finishBtn').disabled=true;
+    setStatus('พร้อมเริ่ม — กด “เริ่มวิ่ง” เพื่ออนุญาต GPS','');updateMetrics();
+  }
+  $('startBtn').addEventListener('click',start); $('pauseBtn').addEventListener('click',pause); $('finishBtn').addEventListener('click',finish); $('resetBtn').addEventListener('click',reset);
+  updateMetrics();
+})();
+</script>
+</body>
+</html>
